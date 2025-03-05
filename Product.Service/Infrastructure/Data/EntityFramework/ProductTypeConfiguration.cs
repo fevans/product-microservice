@@ -11,5 +11,10 @@ internal class ProductTypeConfiguration: IEntityTypeConfiguration<Models.Product
         builder.Property(pt => pt.Type)
             .IsRequired()
             .HasMaxLength(100);
+        // Explain the following line
+        builder.HasData(
+            new Models.ProductType { Id = 1, Type = "Shoes" },
+            new Models.ProductType { Id = 2, Type = "Shorts" }
+        );
     }
 }
