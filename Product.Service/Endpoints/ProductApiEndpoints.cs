@@ -58,6 +58,7 @@ public static class ProductApiEndpoints
                 }
 
                 var existingPrices = product.Price;
+                
 
                 product.Name = request.Name;
                 product.Price = request.Price;

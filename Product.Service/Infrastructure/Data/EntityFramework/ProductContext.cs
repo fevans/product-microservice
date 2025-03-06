@@ -29,6 +29,7 @@ internal class ProductContext(DbContextOptions<ProductContext> options) : DbCont
 
     public async Task UpdateProduct(Models.Product? product)
     {
+        ArgumentNullException.ThrowIfNull(product);
         var existingProduct = await FindAsync<Models.Product>(product.Id);
         if (existingProduct is not null)
         {
