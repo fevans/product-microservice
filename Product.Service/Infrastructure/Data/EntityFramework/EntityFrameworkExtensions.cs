@@ -8,7 +8,13 @@ public  static class EntityFrameworkExtensions
         IConfigurationManager configuration)
     {
         services.AddDbContext<ProductContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("Default")));
+            options.UseSqlServer(configuration.GetConnectionString("Default"),
+                sqlServerOptionsAction: sqlOptions => {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(40),
+                        errorNumbersToAdd: new List<int> { 0 }.AsReadOnly());
+                }));
         services.AddScoped<IProductStore, ProductContext>();
     }
 }
