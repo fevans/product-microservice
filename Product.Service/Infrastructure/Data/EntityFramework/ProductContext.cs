@@ -36,7 +36,11 @@ internal class ProductContext(DbContextOptions<ProductContext> options) : DbCont
             existingProduct.Name = product.Name;
             existingProduct.Price = product.Price;
             existingProduct.Description = product.Description;
-            await SaveChangesAsync();
+            
+            //To combat any transient issues between updating our product and adding the outbox event,
+            //we set the acceptAllChangesOnSuccess parameter to false,
+            //which tells the EF Core change tracker to not call AcceptAllChanges() in case of transient failures.
+            await SaveChangesAsync(acceptAllChangesOnSuccess: false);
         }
         
     }

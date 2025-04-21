@@ -1,6 +1,7 @@
-using ECommerce.Shared.Infrastructure.EventBus;
-using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
+using System.Transactions;
+using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Product.Service.ApiModels;
 using Product.Service.Infrastructure.Data;
 using Product.Service.IntegrationEvents;
@@ -40,14 +41,15 @@ public static class ProductApiEndpoints
                 };
                 await productStore.CreateProduct(product);
                 return TypedResults.Created(product.Id.ToString());
-            });
+            }).RequireAuthorization();
 
 
         // create a MapPut endpoint for the /products path. Use FromServices to get the IProductStore instance. Return a Task<IResult> from the endpoint.
 
         routeBuilder.MapPut("/{productId}",
-            async Task<IResult> ([FromServices] IProductStore productStore, 
-                [FromServices] IEventBus eventBus,
+            async Task<IResult> (
+                [FromServices] IProductStore productStore, 
+                [FromServices] IOutboxStore outboxStore,
                 int productId,
                 UpdateProductRequest request) =>
             {
@@ -57,22 +59,25 @@ public static class ProductApiEndpoints
                     return TypedResults.NotFound($"Product with product id {productId} not found");
                 }
 
-                var existingPrices = product.Price;
-                
-
+                var existingPrice = product.Price;
                 product.Name = request.Name;
                 product.Price = request.Price;
                 product.ProductTypeId = request.ProductTypeId;
                 product.Description = request.Description;
-                await productStore.UpdateProduct(product);
-                
-                if (!existingPrices.Equals(product.Price))
+                //await productStore.UpdateProduct(product);
+                await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
                 {
-                    await eventBus.PublishAsync(new ProductPriceUpdatedEvent(
-                        productId, request.Price));
-                }
+                    using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+                    await productStore.UpdateProduct(product);
+                    if (!decimal.Equals(existingPrice, request.Price))
+                    {
+                        await outboxStore.AddOutboxEvent(new ProductPriceUpdatedEvent(productId, request.Price));
+                    }
+                    scope.Complete();
+                });
+                
                 return TypedResults.NoContent();
-            });
+            }).RequireAuthorization();
 
 
     }
